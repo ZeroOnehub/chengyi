@@ -5,11 +5,13 @@ from pathlib import Path
 from time import monotonic
 from threading import RLock
 from uuid import uuid4
+from typing import Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, inspect, select, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -25,15 +27,19 @@ from app.llm import ModelUnavailable, stream_model
 from app.speech import SpeechUnavailable, save_speech_config, speech_status, synthesize
 from app.voice_stream import stream_voice
 from app.recognition import MAX_AUDIO_BYTES, transcribe
+from app.ui_actions import cancel_ui, plan_action, receive_receipt, require_no_pending_action, sync_context, ui_state
 from app.schemas import (Envelope, HealthOutput, InteractionInput, ItemAdmin, ItemInput,
                          ItemPage, ItemPublic, LoginInput, LoginOutput, ModelConfigInput,
                          ModelProbe, ModelStatus, Reply, SessionCreated, SessionInput, SessionState,
-                         SpeechConfigInput, SpeechStatus, SpeechProbe, VoiceTranscription)
+                         SpeechConfigInput, SpeechStatus, SpeechProbe, VoiceTranscription,
+                         UICancelInput, UIContextInput, UIPlanInput, UIPlanResult, UIReceiptInput, UIReceiptResult, UIState)
 from app.security import RateLimiter, check_password, require_admin, signer
 from app.seed import seed_demo
+from app.workbench_routes import install as install_workbench
 
 log = logging.getLogger("heritage")
 STATIC = Path(__file__).parent / "static"
+FRONTEND = Path(__file__).resolve().parents[2]
 PREFIX = "/api/v1"
 
 
@@ -76,6 +82,7 @@ def create_app(settings: Settings | None = None, model_transport=None, configura
     app.state.limiter = RateLimiter()
     app.state.model_transport = model_transport
     app.state.speech_transport = speech_transport
+    install_workbench(app, STATIC, db_session, ok, rate_limit)
     app.state.configuration_path = Path(configuration_path or ".env").resolve()
     app.state.model_config_lock = RLock()
     app.state.model_verification = "unverified"
@@ -97,7 +104,7 @@ def create_app(settings: Settings | None = None, model_transport=None, configura
             response = await call_next(request)
         response.headers["X-Request-ID"] = request.state.request_id
         response.headers["X-Content-Type-Options"] = "nosniff"
-        if request.url.path.startswith(PREFIX + "/admin") or "/sessions" in request.url.path:
+        if request.url.path.startswith(PREFIX + "/admin") or "/sessions" in request.url.path or "/workbenches" in request.url.path:
             response.headers["Cache-Control"] = "no-store"
         log.info("request id=%s method=%s status=%s duration_ms=%d", request.state.request_id,
                  request.method, response.status_code, int((monotonic() - started) * 1000))
@@ -124,7 +131,29 @@ def create_app(settings: Settings | None = None, model_transport=None, configura
 
     @app.get("/", include_in_schema=False)
     def dashboard():
+        if (FRONTEND / "index.html").is_file():
+            return RedirectResponse("/chengyi/", status_code=303)
         return FileResponse(STATIC / "admin.html")
+
+    @app.get("/admin", include_in_schema=False)
+    def admin_dashboard():
+        return FileResponse(STATIC / "admin.html")
+
+    if (FRONTEND / "index.html").is_file():
+        @app.get("/chengyi", include_in_schema=False)
+        def frontend_redirect():
+            return RedirectResponse("/chengyi/", status_code=303)
+
+        @app.get("/chengyi/", include_in_schema=False)
+        @app.get("/chengyi/index.html", include_in_schema=False)
+        def frontend_entry():
+            return FileResponse(FRONTEND / "index.html")
+
+        # Only these public directories are mounted; server/.env and databases remain inaccessible.
+        for directory in ("css", "js"):
+            app.mount("/chengyi/" + directory, StaticFiles(directory=FRONTEND / directory), name="chengyi-" + directory)
+        if settings.environment == "development":
+            app.mount("/chengyi/tests", StaticFiles(directory=FRONTEND / "tests"), name="chengyi-tests")
 
     @app.get("/demo", include_in_schema=False)
     def demo():
@@ -137,6 +166,14 @@ def create_app(settings: Settings | None = None, model_transport=None, configura
     @app.get("/recording-worklet.js", include_in_schema=False)
     def recording_worklet():
         return FileResponse(STATIC / "recording-worklet.js", media_type="application/javascript")
+
+    @app.get("/pcm-player.js", include_in_schema=False)
+    def pcm_player():
+        return FileResponse(STATIC / "pcm-player.js", media_type="application/javascript")
+
+    @app.get("/ui-controls.js", include_in_schema=False)
+    def ui_controls():
+        return FileResponse(STATIC / "ui-controls.js", media_type="application/javascript")
 
     @app.get(PREFIX + "/voice/status", tags=["语音"], response_model=Envelope[SpeechStatus])
     def voice_status(request: Request):
@@ -176,6 +213,41 @@ def create_app(settings: Settings | None = None, model_transport=None, configura
                      x_session_token: str = Header(default=""), db: Session = Depends(db_session)):
         return ok(request, session_dict(authenticate_session(db, session_id, x_session_token)))
 
+    @app.get(PREFIX + "/sessions/{session_id}/ui/state", tags=["界面联动"], response_model=Envelope[UIState])
+    def read_ui_state(session_id: str, request: Request,
+                      x_session_token: str = Header(default=""), db: Session = Depends(db_session)):
+        return ok(request, ui_state(db, authenticate_session(db, session_id, x_session_token)))
+
+    @app.post(PREFIX + "/sessions/{session_id}/ui/context", tags=["界面联动"], response_model=Envelope[UIState])
+    def update_ui_context(session_id: str, payload: UIContextInput, request: Request,
+                          x_session_token: str = Header(default=""), db: Session = Depends(db_session)):
+        session = authenticate_session(db, session_id, x_session_token)
+        rate_limit(request, "ui-context-ip", 90)
+        return ok(request, sync_context(db, session, payload))
+
+    @app.post(PREFIX + "/sessions/{session_id}/ui/plan", tags=["界面联动"], response_model=Envelope[UIPlanResult])
+    def plan_ui(session_id: str, payload: UIPlanInput, request: Request,
+                x_session_token: str = Header(default=""), db: Session = Depends(db_session)):
+        session = authenticate_session(db, session_id, x_session_token)
+        rate_limit(request, "ui-plan-ip", 90)
+        app.state.limiter.check("ui-plan-session:" + session.id, 60)
+        return ok(request, plan_action(db, session, payload))
+
+    @app.post(PREFIX + "/sessions/{session_id}/ui/cancel", tags=["界面联动"], response_model=Envelope[UIState])
+    def cancel_ui_actions(session_id: str, payload: UICancelInput, request: Request,
+                          x_session_token: str = Header(default=""), db: Session = Depends(db_session)):
+        session = authenticate_session(db, session_id, x_session_token)
+        rate_limit(request, "ui-cancel-ip", 120)
+        return ok(request, cancel_ui(db, session, payload))
+
+    @app.post(PREFIX + "/sessions/{session_id}/ui/actions/{action_id}/receipt", tags=["界面联动"],
+              response_model=Envelope[UIReceiptResult])
+    def acknowledge_ui(session_id: str, action_id: str, payload: UIReceiptInput, request: Request,
+                       x_session_token: str = Header(default=""), db: Session = Depends(db_session)):
+        session = authenticate_session(db, session_id, x_session_token)
+        rate_limit(request, "ui-receipt-ip", 120)
+        return ok(request, receive_receipt(db, session, action_id, payload))
+
     @app.post(PREFIX + "/sessions/{session_id}/transcribe", tags=["语音"],
               response_model=Envelope[VoiceTranscription], openapi_extra={"requestBody": {
                   "required": True, "content": {"audio/wav": {"schema": {"type": "string", "format": "binary"}}}}})
@@ -196,6 +268,7 @@ def create_app(settings: Settings | None = None, model_transport=None, configura
 
     def prepare(request, db, session_id, token, payload):
         session = authenticate_session(db, session_id, token)
+        require_no_pending_action(db, session)
         rate_limit(request, "interaction-ip", 90)
         app.state.limiter.check("interaction-session:" + session.id, 30)
         return prepare_interaction(db, session, payload)
@@ -229,7 +302,8 @@ def create_app(settings: Settings | None = None, model_transport=None, configura
                   "description": "SSE：文字事件 + 按句 audio + speech_error + voice_done 耗时。",
                   "content": {"text/event-stream": {"schema": {"type": "string"}}}}})
     async def voice_interact(session_id: str, payload: InteractionInput, request: Request,
-                             x_session_token: str = Header(default=""), db: Session = Depends(db_session)):
+                             x_session_token: str = Header(default=""), db: Session = Depends(db_session),
+                             audio_format: Literal["mp3", "pcm"] = Query(default="mp3")):
         current = app.state.settings
         prepared = prepare(request, db, session_id, x_session_token, payload)
         if not current.speech_enabled:
@@ -237,7 +311,7 @@ def create_app(settings: Settings | None = None, model_transport=None, configura
 
         async def events():
             source = execute_interaction(db, prepared, payload, current, request.state.request_id, model_transport, voice=True)
-            async for event in stream_voice(source, current, speech_transport):
+            async for event in stream_voice(source, current, speech_transport, audio_format=audio_format):
                 yield "event: " + event["event"] + "\ndata: " + json.dumps(event["data"], ensure_ascii=False) + "\n\n"
         return StreamingResponse(events(), media_type="text/event-stream", headers={
             "Cache-Control": "no-cache, no-store", "X-Accel-Buffering": "no"})

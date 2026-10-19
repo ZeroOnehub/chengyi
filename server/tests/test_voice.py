@@ -14,6 +14,7 @@ from app.llm import ModelUnavailable, stream_model
 from app.main import create_app
 from app.seed import seed_demo
 from app.speech import SpeechUnavailable, synthesize
+from app.speech import stream_pcm
 from app.text_stream import ReasoningFilter, SentenceBuffer
 from app.voice_stream import stream_voice
 from app.recognition import playback_command
@@ -307,3 +308,97 @@ def test_failed_transcription_does_not_expose_provider_secrets(tmp_path):
         response = client.post('/api/v1/sessions/'+sid+'/transcribe', headers={**visitor,'Content-Type':'audio/wav'},
                                content=recording_bytes())
         assert response.status_code==503 and 'provider-private-key' not in response.text
+
+
+def test_pcm_reaches_visitor_before_the_sentence_finishes(tmp_path):
+    async def scenario():
+        release_audio = asyncio.Event()
+        source_closed = asyncio.Event()
+        speech_finished = False
+        class Audio(httpx.AsyncByteStream):
+            async def __aiter__(self):
+                nonlocal speech_finished
+                try:
+                    yield b'\x01\x00' * 2400
+                    await release_audio.wait()
+                    yield b'\x02\x00' * 2400
+                    speech_finished = True
+                finally:
+                    source_closed.set()
+        def handler(request):
+            body = json.loads(request.content)
+            assert body['response_format']=='pcm' and body['sample_rate']==24000 and body['stream']
+            return httpx.Response(200, stream=Audio())
+        async def source():
+            yield {'event':'delta','data':{'text':'第一段讲解。'}}
+            yield {'event':'result','data':{'text':'第一段讲解。'}}
+        settings = configuration(tmp_path, speech_enabled=True, speech_api_key='test-key')
+        events = []
+        async with asyncio.timeout(3):
+            async for event in stream_voice(source(),settings,httpx.MockTransport(handler),audio_format='pcm'):
+                events.append(event)
+                if event['event']=='audio_chunk':
+                    assert not speech_finished or release_audio.is_set()
+                    release_audio.set()
+        assert source_closed.is_set()
+        assert [event['event'] for event in events].count('audio_chunk')==2
+        assert events[-1]['data']['audio_format']=='pcm'
+        assert events[-1]['data']['segments']==1
+        assert events[-1]['data']['first_audio_ready_ms'] is not None
+    asyncio.run(scenario())
+
+
+def test_first_phrase_is_not_held_until_a_long_sentences_period():
+    parser = SentenceBuffer(first_length=28)
+    first = parser.feed('这只碗的碗心画着石榴纹，')
+    assert first == ['这只碗的碗心画着石榴纹，']
+    rest = '接下来的解释还有很多内容，' * 8 + '最后结束。'
+    pieces = parser.feed(rest) + parser.feed('',final=True)
+    assert ''.join(first+pieces) == '这只碗的碗心画着石榴纹，'+rest
+    assert len(pieces[0])>28
+
+
+def test_pcm_samples_survive_odd_network_chunk_boundaries(tmp_path):
+    async def scenario():
+        class Audio(httpx.AsyncByteStream):
+            async def __aiter__(self):
+                for chunk in (b'\x01', b'\x00\x02', b'\x00'):
+                    yield chunk
+        settings = configuration(tmp_path, speech_enabled=True, speech_api_key='test-key')
+        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda request:
+                httpx.Response(200,stream=Audio()))) as client:
+            parts=[part async for part in stream_pcm(settings,'讲解',client)]
+        assert b''.join(parts)==b'\x01\x00\x02\x00'
+        assert all(len(part)%2==0 for part in parts)
+        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda request:
+                httpx.Response(200,headers={'Content-Type':'application/json'},json={'error':'private-key'}))) as client:
+            with pytest.raises(SpeechUnavailable) as error:
+                async for _ in stream_pcm(settings,'讲解',client):
+                    pass
+        assert error.value.code=='speech_invalid_audio' and 'private-key' not in str(error.value)
+    asyncio.run(scenario())
+
+
+def test_cancel_pcm_disconnects_the_provider_stream(tmp_path):
+    async def scenario():
+        closed=asyncio.Event()
+        class Audio(httpx.AsyncByteStream):
+            async def __aiter__(self):
+                try:
+                    yield b'\x01\x00'*500
+                    await asyncio.Event().wait()
+                finally:
+                    closed.set()
+        async def source():
+            yield {'event':'delta','data':{'text':'讲解。'}}
+            yield {'event':'result','data':{}}
+        settings=configuration(tmp_path,speech_enabled=True,speech_api_key='test-key')
+        events=stream_voice(source(),settings,httpx.MockTransport(lambda request:
+            httpx.Response(200,stream=Audio())),audio_format='pcm')
+        async with asyncio.timeout(3):
+            async for event in events:
+                if event['event']=='audio_chunk':
+                    break
+            await events.aclose()
+            await closed.wait()
+    asyncio.run(scenario())

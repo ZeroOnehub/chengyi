@@ -10,3 +10,8 @@ server/data/
 __pycache__/
 .pytest_cache/
 *.pyc
+后台账号.txt
+临时工作台网址.txt
+启动日志.txt
+server/分享文件/
+exports/

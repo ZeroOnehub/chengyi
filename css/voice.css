@@ -78,3 +78,12 @@
   .quick button:hover, .chat-prompts button:hover { border-color: var(--ink); color: var(--ink); }
   .voice-pill:hover { box-shadow: var(--shadow-card); }
 }
+/* 整合版语音操作沿用原有纸白与墨色样式。 */
+.chat-voice-controls { display:flex; align-items:center; gap:14px; padding:10px 20px 0; font-size:12px; }
+.chat-voice-controls button { border:0; border-radius:14px; padding:7px 10px; background:var(--paper, #f3eee5); color:inherit; cursor:pointer; }
+.chat-voice-controls label { display:flex; align-items:center; gap:5px; }
+.chat-voice-controls button:last-child { margin-left:auto; }
+.chat-voice-controls .recording { background:#9f2e1d; color:white; }
+.voice-status { min-height:16px; margin:4px 20px 0; font-size:11px; opacity:.75; }
+.message .artifact-download { display:block; margin-top:8px; text-decoration:underline; }
+.pottery-applying #work-layout, .pottery-applying #studio-canvas { pointer-events:none; }

@@ -6,6 +6,490 @@
     "version": "0.2.0"
   },
   "paths": {
+    "/api/v1/workbenches/tools/openapi.json": {
+      "get": {
+        "tags": [
+          "陶艺工作台"
+        ],
+        "summary": "Tools Schema",
+        "operationId": "tools_schema_api_v1_workbenches_tools_openapi_json_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workbenches": {
+      "post": {
+        "tags": [
+          "陶艺工作台"
+        ],
+        "summary": "Create",
+        "operationId": "create_api_v1_workbenches_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWorkbench"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workbenches/{project_id}": {
+      "get": {
+        "tags": [
+          "陶艺工作台"
+        ],
+        "summary": "Read",
+        "operationId": "read_api_v1_workbenches__project_id__get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "x-session-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Session-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workbenches/{project_id}/sync": {
+      "post": {
+        "tags": [
+          "陶艺工作台"
+        ],
+        "summary": "Sync",
+        "operationId": "sync_api_v1_workbenches__project_id__sync_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "x-session-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Session-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyncWorkbench"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workbenches/{project_id}/cancel": {
+      "post": {
+        "tags": [
+          "陶艺工作台"
+        ],
+        "summary": "Cancel",
+        "operationId": "cancel_api_v1_workbenches__project_id__cancel_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "x-session-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Session-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workbenches/{project_id}/commands": {
+      "post": {
+        "tags": [
+          "陶艺工作台"
+        ],
+        "summary": "Command",
+        "operationId": "command_api_v1_workbenches__project_id__commands_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "x-session-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Session-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkbenchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workbenches/{project_id}/tools/{tool_name}": {
+      "post": {
+        "tags": [
+          "陶艺工作台"
+        ],
+        "summary": "Tool",
+        "operationId": "tool_api_v1_workbenches__project_id__tools__tool_name__post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "tool_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tool Name"
+            }
+          },
+          {
+            "name": "x-session-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Session-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workbenches/{project_id}/commands/{command_id}/receipt": {
+      "post": {
+        "tags": [
+          "陶艺工作台"
+        ],
+        "summary": "Receipt",
+        "operationId": "receipt_api_v1_workbenches__project_id__commands__command_id__receipt_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "command_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Command Id"
+            }
+          },
+          {
+            "name": "x-session-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Session-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkbenchReceipt"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workbenches/{project_id}/speech": {
+      "post": {
+        "tags": [
+          "陶艺工作台"
+        ],
+        "summary": "Speak",
+        "operationId": "speak_api_v1_workbenches__project_id__speech_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "x-session-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Session-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeakRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/voice/status": {
       "get": {
         "tags": [
@@ -261,6 +745,315 @@
         }
       }
     },
+    "/api/v1/sessions/{session_id}/ui/state": {
+      "get": {
+        "tags": [
+          "界面联动"
+        ],
+        "summary": "Read Ui State",
+        "operationId": "read_ui_state_api_v1_sessions__session_id__ui_state_get",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "x-session-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Session-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_UIState_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sessions/{session_id}/ui/context": {
+      "post": {
+        "tags": [
+          "界面联动"
+        ],
+        "summary": "Update Ui Context",
+        "operationId": "update_ui_context_api_v1_sessions__session_id__ui_context_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "x-session-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Session-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UIContextInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_UIState_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sessions/{session_id}/ui/plan": {
+      "post": {
+        "tags": [
+          "界面联动"
+        ],
+        "summary": "Plan Ui",
+        "operationId": "plan_ui_api_v1_sessions__session_id__ui_plan_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "x-session-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Session-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UIPlanInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_UIPlanResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sessions/{session_id}/ui/cancel": {
+      "post": {
+        "tags": [
+          "界面联动"
+        ],
+        "summary": "Cancel Ui Actions",
+        "operationId": "cancel_ui_actions_api_v1_sessions__session_id__ui_cancel_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "x-session-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Session-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UICancelInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_UIState_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sessions/{session_id}/ui/actions/{action_id}/receipt": {
+      "post": {
+        "tags": [
+          "界面联动"
+        ],
+        "summary": "Acknowledge Ui",
+        "operationId": "acknowledge_ui_api_v1_sessions__session_id__ui_actions__action_id__receipt_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "action_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Action Id"
+            }
+          },
+          {
+            "name": "x-session-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Session-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UIReceiptInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_UIReceiptResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sessions/{session_id}/transcribe": {
       "post": {
         "tags": [
@@ -463,6 +1256,20 @@
             "schema": {
               "type": "string",
               "title": "Session Id"
+            }
+          },
+          {
+            "name": "audio_format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "mp3",
+                "pcm"
+              ],
+              "type": "string",
+              "default": "mp3",
+              "title": "Audio Format"
             }
           },
           {
@@ -851,6 +1658,203 @@
         ],
         "title": "Action"
       },
+      "ArtifactReceipt": {
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "png",
+              "obj",
+              "json"
+            ],
+            "title": "Format"
+          },
+          "filename": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Filename"
+          },
+          "bytes": {
+            "type": "integer",
+            "maximum": 50000000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Bytes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "format",
+          "filename",
+          "bytes"
+        ],
+        "title": "ArtifactReceipt"
+      },
+      "CreateWorkbench": {
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/Document"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "document"
+        ],
+        "title": "CreateWorkbench"
+      },
+      "CrossSection": {
+        "properties": {
+          "shape": {
+            "type": "string",
+            "enum": [
+              "circle",
+              "heart",
+              "triangle",
+              "square",
+              "rectangle",
+              "pentagon",
+              "hexagon",
+              "oval",
+              "star",
+              "flower",
+              "teardrop",
+              "custom"
+            ],
+            "title": "Shape",
+            "default": "circle"
+          },
+          "roundness": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Roundness",
+            "default": 0.2
+          },
+          "rotation_deg": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Rotation Deg",
+            "default": 0
+          },
+          "aspect_ratio": {
+            "type": "number",
+            "maximum": 2.5,
+            "minimum": 0.4,
+            "title": "Aspect Ratio",
+            "default": 1
+          },
+          "lobes": {
+            "type": "integer",
+            "maximum": 8.0,
+            "minimum": 3.0,
+            "title": "Lobes",
+            "default": 5
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/PolarPoint"
+            },
+            "type": "array",
+            "maxItems": 32,
+            "title": "Points"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CrossSection"
+      },
+      "Document": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Name",
+            "default": "未命名的陶器"
+          },
+          "profile": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "maxItems": 96,
+            "minItems": 96,
+            "title": "Profile"
+          },
+          "height": {
+            "type": "number",
+            "maximum": 40.0,
+            "minimum": 8.0,
+            "title": "Height"
+          },
+          "material": {
+            "type": "string",
+            "enum": [
+              "terracotta",
+              "cream",
+              "celadon",
+              "blue",
+              "brown",
+              "charcoal"
+            ],
+            "title": "Material"
+          },
+          "gloss": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Gloss"
+          },
+          "preset": {
+            "type": "string",
+            "enum": [
+              "vase",
+              "jar",
+              "bowl",
+              "cup"
+            ],
+            "title": "Preset"
+          },
+          "cross_section": {
+            "$ref": "#/components/schemas/CrossSection"
+          },
+          "section_bands": {
+            "items": {
+              "$ref": "#/components/schemas/SectionBand"
+            },
+            "type": "array",
+            "maxItems": 8,
+            "title": "Section Bands"
+          },
+          "deformations": {
+            "items": {
+              "$ref": "#/components/schemas/LocalDeformation"
+            },
+            "type": "array",
+            "maxItems": 32,
+            "title": "Deformations"
+          },
+          "wheel": {
+            "$ref": "#/components/schemas/WheelState"
+          },
+          "view": {
+            "$ref": "#/components/schemas/ViewState"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "profile",
+          "height",
+          "material",
+          "gloss",
+          "preset"
+        ],
+        "title": "Document"
+      },
       "Envelope_HealthOutput_": {
         "properties": {
           "data": {
@@ -1054,6 +2058,57 @@
           "request_id"
         ],
         "title": "Envelope[SpeechStatus]"
+      },
+      "Envelope_UIPlanResult_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/UIPlanResult"
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "request_id"
+        ],
+        "title": "Envelope[UIPlanResult]"
+      },
+      "Envelope_UIReceiptResult_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/UIReceiptResult"
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "request_id"
+        ],
+        "title": "Envelope[UIReceiptResult]"
+      },
+      "Envelope_UIState_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/UIState"
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "request_id"
+        ],
+        "title": "Envelope[UIState]"
       },
       "Envelope_VoiceTranscription_": {
         "properties": {
@@ -1539,6 +2594,57 @@
         ],
         "title": "KnowledgeInput"
       },
+      "LocalDeformation": {
+        "properties": {
+          "start_height_ratio": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Start Height Ratio"
+          },
+          "end_height_ratio": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "End Height Ratio"
+          },
+          "angle_deg": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Angle Deg"
+          },
+          "angular_width_deg": {
+            "type": "number",
+            "maximum": 360.0,
+            "minimum": 10.0,
+            "title": "Angular Width Deg",
+            "default": 90
+          },
+          "radius_delta_cm": {
+            "type": "number",
+            "maximum": 6.0,
+            "minimum": -6.0,
+            "title": "Radius Delta Cm",
+            "default": 0
+          },
+          "radius_scale_percent": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": -60.0,
+            "title": "Radius Scale Percent",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "start_height_ratio",
+          "end_height_ratio",
+          "angle_deg"
+        ],
+        "title": "LocalDeformation"
+      },
       "LoginInput": {
         "properties": {
           "username": {
@@ -1730,6 +2836,29 @@
         ],
         "title": "ModelStatus"
       },
+      "PolarPoint": {
+        "properties": {
+          "angle_deg": {
+            "type": "number",
+            "exclusiveMaximum": 360.0,
+            "minimum": 0.0,
+            "title": "Angle Deg"
+          },
+          "radius_ratio": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.2,
+            "title": "Radius Ratio"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "angle_deg",
+          "radius_ratio"
+        ],
+        "title": "PolarPoint"
+      },
       "Reply": {
         "properties": {
           "request_id": {
@@ -1822,6 +2951,84 @@
           "provider_error"
         ],
         "title": "Reply"
+      },
+      "SectionBand": {
+        "properties": {
+          "shape": {
+            "type": "string",
+            "enum": [
+              "circle",
+              "heart",
+              "triangle",
+              "square",
+              "rectangle",
+              "pentagon",
+              "hexagon",
+              "oval",
+              "star",
+              "flower",
+              "teardrop",
+              "custom"
+            ],
+            "title": "Shape",
+            "default": "circle"
+          },
+          "roundness": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Roundness",
+            "default": 0.2
+          },
+          "rotation_deg": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Rotation Deg",
+            "default": 0
+          },
+          "aspect_ratio": {
+            "type": "number",
+            "maximum": 2.5,
+            "minimum": 0.4,
+            "title": "Aspect Ratio",
+            "default": 1
+          },
+          "lobes": {
+            "type": "integer",
+            "maximum": 8.0,
+            "minimum": 3.0,
+            "title": "Lobes",
+            "default": 5
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/PolarPoint"
+            },
+            "type": "array",
+            "maxItems": 32,
+            "title": "Points"
+          },
+          "start_height_ratio": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Start Height Ratio"
+          },
+          "end_height_ratio": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "End Height Ratio"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "start_height_ratio",
+          "end_height_ratio"
+        ],
+        "title": "SectionBand"
       },
       "SessionCreated": {
         "properties": {
@@ -1971,6 +3178,21 @@
         ],
         "title": "SourceReference"
       },
+      "SpeakRequest": {
+        "properties": {
+          "command_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Command Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "command_id"
+        ],
+        "title": "SpeakRequest"
+      },
       "SpeechConfigInput": {
         "properties": {
           "enabled": {
@@ -2075,6 +3297,442 @@
         ],
         "title": "SpeechStatus"
       },
+      "SyncWorkbench": {
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Revision"
+          },
+          "document": {
+            "$ref": "#/components/schemas/Document"
+          },
+          "client_request_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Client Request Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_revision",
+          "document",
+          "client_request_id"
+        ],
+        "title": "SyncWorkbench"
+      },
+      "ToolRequest": {
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Revision"
+          },
+          "client_request_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Client Request Id"
+          },
+          "arguments": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Arguments"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_revision",
+          "client_request_id"
+        ],
+        "title": "ToolRequest"
+      },
+      "UIActionTicket": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "open_item",
+              "focus_hotspot",
+              "audio_pause",
+              "audio_resume",
+              "audio_repeat",
+              "audio_stop"
+            ],
+            "title": "Type"
+          },
+          "item_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Id"
+          },
+          "hotspot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hotspot Id"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "title": "Expected Revision"
+          },
+          "expires_at": {
+            "type": "string",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "item_id",
+          "hotspot_id",
+          "expected_revision",
+          "expires_at"
+        ],
+        "title": "UIActionTicket"
+      },
+      "UICancelInput": {
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_revision"
+        ],
+        "title": "UICancelInput"
+      },
+      "UIChoice": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "text"
+        ],
+        "title": "UIChoice"
+      },
+      "UIContextInput": {
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Revision"
+          },
+          "item_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,64}$",
+            "title": "Item Id"
+          },
+          "hotspot_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hotspot Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_revision",
+          "item_id"
+        ],
+        "title": "UIContextInput"
+      },
+      "UIPlanInput": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Revision"
+          },
+          "client_request_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Client Request Id"
+          },
+          "supported_actions": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "open_item",
+                "focus_hotspot",
+                "audio_pause",
+                "audio_resume",
+                "audio_repeat",
+                "audio_stop"
+              ]
+            },
+            "type": "array",
+            "maxItems": 6,
+            "title": "Supported Actions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text",
+          "expected_revision",
+          "client_request_id",
+          "supported_actions"
+        ],
+        "title": "UIPlanInput"
+      },
+      "UIPlanResult": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "action",
+              "ask",
+              "clarify",
+              "completed"
+            ],
+            "title": "Decision"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "session": {
+            "$ref": "#/components/schemas/SessionState"
+          },
+          "action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UIActionTicket"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "interaction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InteractionInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "choices": {
+            "items": {
+              "$ref": "#/components/schemas/UIChoice"
+            },
+            "type": "array",
+            "title": "Choices"
+          },
+          "resolver": {
+            "type": "string",
+            "const": "local_commands",
+            "title": "Resolver",
+            "default": "local_commands"
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision",
+          "message",
+          "session"
+        ],
+        "title": "UIPlanResult"
+      },
+      "UIReceiptInput": {
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Revision"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "applied",
+              "failed",
+              "unsupported",
+              "cancelled"
+            ],
+            "title": "Status"
+          },
+          "actual_item_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Item Id"
+          },
+          "actual_hotspot_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Hotspot Id"
+          },
+          "playback_state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "playing",
+                  "paused",
+                  "stopped"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Playback State"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_revision",
+          "status"
+        ],
+        "title": "UIReceiptInput"
+      },
+      "UIReceiptResult": {
+        "properties": {
+          "action_id": {
+            "type": "string",
+            "title": "Action Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "applied",
+              "failed",
+              "unsupported",
+              "cancelled"
+            ],
+            "title": "Status"
+          },
+          "duplicate": {
+            "type": "boolean",
+            "title": "Duplicate"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "session": {
+            "$ref": "#/components/schemas/SessionState"
+          },
+          "interaction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InteractionInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "action_id",
+          "status",
+          "duplicate",
+          "message",
+          "session"
+        ],
+        "title": "UIReceiptResult"
+      },
+      "UIState": {
+        "properties": {
+          "session": {
+            "$ref": "#/components/schemas/SessionState"
+          },
+          "pending_action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UIActionTicket"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "action_types": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "open_item",
+                "focus_hotspot",
+                "audio_pause",
+                "audio_resume",
+                "audio_repeat",
+                "audio_stop"
+              ]
+            },
+            "type": "array",
+            "title": "Action Types"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session",
+          "pending_action",
+          "action_types"
+        ],
+        "title": "UIState"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -2115,6 +3773,45 @@
         ],
         "title": "ValidationError"
       },
+      "ViewState": {
+        "properties": {
+          "direction": {
+            "type": "string",
+            "enum": [
+              "front",
+              "top",
+              "perspective",
+              "custom"
+            ],
+            "title": "Direction",
+            "default": "perspective"
+          },
+          "azimuth_deg": {
+            "type": "number",
+            "maximum": 360.0,
+            "minimum": -360.0,
+            "title": "Azimuth Deg",
+            "default": 36.38
+          },
+          "polar_deg": {
+            "type": "number",
+            "maximum": 88.0,
+            "minimum": 1.43,
+            "title": "Polar Deg",
+            "default": 68.65
+          },
+          "zoom_percent": {
+            "type": "number",
+            "maximum": 190.0,
+            "minimum": 57.0,
+            "title": "Zoom Percent",
+            "default": 100
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ViewState"
+      },
       "VoiceTranscription": {
         "properties": {
           "text": {
@@ -2150,6 +3847,103 @@
           "latency_ms"
         ],
         "title": "VoiceTranscription"
+      },
+      "WheelState": {
+        "properties": {
+          "rotating": {
+            "type": "boolean",
+            "title": "Rotating",
+            "default": true
+          },
+          "speed_rpm": {
+            "type": "number",
+            "maximum": 60.0,
+            "minimum": 5.0,
+            "title": "Speed Rpm",
+            "default": 30
+          },
+          "rotation_deg": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Rotation Deg",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "WheelState"
+      },
+      "WorkbenchReceipt": {
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Revision"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "applied",
+              "failed",
+              "cancelled"
+            ],
+            "title": "Status"
+          },
+          "document": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Document"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "artifacts": {
+            "items": {
+              "$ref": "#/components/schemas/ArtifactReceipt"
+            },
+            "type": "array",
+            "maxItems": 1,
+            "title": "Artifacts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_revision",
+          "status"
+        ],
+        "title": "WorkbenchReceipt"
+      },
+      "WorkbenchRequest": {
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Revision"
+          },
+          "client_request_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Client Request Id"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_revision",
+          "client_request_id",
+          "text"
+        ],
+        "title": "WorkbenchRequest"
       }
     }
   }

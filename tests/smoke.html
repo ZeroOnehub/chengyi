@@ -12,6 +12,7 @@
 </head>
 <body>
 <!-- 自动走一遍主流程：山河 → 产地 → 工坊入口 → 创作 → 对话 → 册页 → 入窑 → 完成 → 作品照片 → 删除 → 剪纸 → AI 不可用兜底 -->
+<script src="storage.js"></script>
 <iframe id="app" src="../index.html?ai=off#explore"></iframe>
 <pre id="log"></pre>
 <script>
@@ -30,7 +31,6 @@ async function run() {
   const errors = [];
   win.addEventListener('error', e => errors.push(e.message));
   win.addEventListener('unhandledrejection', e => errors.push(String(e.reason)));
-  try { win.localStorage.clear(); } catch (e) {}
   const $ = id => doc.getElementById(id);
   const visible = el => !!el && !el.hidden && el.getClientRects().length > 0;
   const $$ = sel => [...doc.querySelectorAll(sel)];
@@ -215,7 +215,7 @@ async function run() {
 }
 document.getElementById('app').addEventListener('load', () => run().catch(e => {
   log.insertAdjacentHTML('beforeend', `<span class="fail">CRASH</span> ${e.stack || e}\n`);
-}));
+}).finally(() => window.restoreTestStorage()));
 </script>
 </body>
 </html>

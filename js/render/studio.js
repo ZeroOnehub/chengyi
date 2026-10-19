@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { buildSubject, disposeSubject } from './craftmesh.js';
 import { backdropMap, contactShadow } from './textures.js';
+import { toDocument } from '../core/pottery.js';
 
 const BACKDROP = '#e8e1d6';
 
@@ -130,9 +131,10 @@ export function createStudio(canvas, { interactive = true, preserve = false, pix
 
   // —— 镜头 ——
   const view = { yaw: 0.35, pitch: 0, zoom: 1, shiftX: 0, shiftY: 0, tShiftX: 0, tShiftY: 0 };
-  const frame = { target: new THREE.Vector3(0, 1, 0), dist: 9, elev: 0.16 };
+  const frame = { target: new THREE.Vector3(0, 1, 0), dist: 9, elev: 0.16, mode: 'create' };
   let reduced = false;
   let active = false, raf = 0, last = 0;
+  let wheelHeld = false;
   let width = 1, height = 1;
 
   function fitCamera() {
@@ -147,13 +149,17 @@ export function createStudio(canvas, { interactive = true, preserve = false, pix
       frame.elev = 0.2;
       const h = subject.height;
       frame.target.set(0, h * 0.5, 0);
-      const span = Math.max(h * 1.9, subject.radius * 3.1 / Math.max(0.6, camera.aspect));
+      const elevation = THREE.MathUtils.clamp(frame.elev + view.pitch, .05, 1.545);
+      const vertical = h * Math.cos(elevation) + subject.radius * 2 * Math.sin(elevation);
+      const safeHeight = interactive ? .64 : .86;
+      const safeWidth = interactive && frame.mode === 'chat' ? .60 : interactive && frame.mode === 'intro' ? .60 : .9;
+      const span = Math.max(vertical / safeHeight, subject.radius * 2 / (Math.max(.5, camera.aspect) * safeWidth)) * 1.08;
       frame.dist = span / (2 * Math.tan(fov / 2));
     }
   }
 
   function placeCamera() {
-    const elev = THREE.MathUtils.clamp(frame.elev + view.pitch, 0.05, 1.3);
+    const elev = THREE.MathUtils.clamp(frame.elev + view.pitch, 0.05, 1.545);
     const d = frame.dist / view.zoom;
     camera.position.set(0, frame.target.y + Math.sin(elev) * d, frame.target.z + Math.cos(elev) * d);
     camera.lookAt(frame.target);
@@ -247,10 +253,12 @@ export function createStudio(canvas, { interactive = true, preserve = false, pix
     last = now;
     stepFiring(now);
     // 陶车转动
-    if (subject?.wheel && !reduced) {
-      subject.spin.rotation.y += dt * 2.4;
-      subject.wheel.spinner.rotation.y += dt * 2.4;
-    } else if (subject && !dragging) {
+    const potteryWheel = current.state?.pottery?.wheel;
+    if (subject?.wheel && !reduced && !wheelHeld && potteryWheel?.rotating !== false) {
+      const speed = potteryWheel ? potteryWheel.speed_rpm * Math.PI / 30 : 2.4;
+      subject.spin.rotation.y += dt * speed;
+      subject.wheel.spinner.rotation.y += dt * speed;
+    } else if (subject && !dragging && !wheelHeld) {
       // 不拖动时，慢慢转回到用户选定的角度
       subject.spin.rotation.y += (view.yaw - subject.spin.rotation.y) * Math.min(1, dt * 6);
     }
@@ -311,15 +319,26 @@ export function createStudio(canvas, { interactive = true, preserve = false, pix
       const prev = current;
       subjectKey = key;
       current = { craft, state };
+      wheelHeld = false;
       const fire = animate && !reduced && active && craft === 'ceramic' && prev.craft === 'ceramic'
         && prev.state?.step === 1 && state.step === 2 && prev.state.shape === state.shape;
       if (fire) return runFiring(state);
       place(buildSubject(craft, state, variant));
+      if (craft === 'ceramic' && state.pottery) {
+        const doc = toDocument(state);
+        view.yaw = THREE.MathUtils.degToRad(doc.wheel.rotation_deg - doc.view.azimuth_deg);
+        view.pitch = Math.PI / 2 - THREE.MathUtils.degToRad(doc.view.polar_deg) - frame.elev;
+        view.zoom = doc.view.zoom_percent / 100;
+        subject.spin.rotation.y = view.yaw;
+        fitCamera();
+      }
       if (!active) render();
       return Promise.resolve();
     },
     // 构图：intro 时器物偏右，给左侧文字留位置；chat 时偏左，给对话让位
     compose(mode, { immediate = false } = {}) {
+      frame.mode = mode;
+      fitCamera();
       view.tShiftX = mode === 'intro' ? 0.14 : mode === 'chat' ? -0.13 : 0;
       view.tShiftY = mode === 'intro' ? 0 : -0.035;
       if (immediate || reduced || !active) {
@@ -361,6 +380,39 @@ export function createStudio(canvas, { interactive = true, preserve = false, pix
       return renderer.domElement.toDataURL(type, quality);
     },
     isFiring: () => !!firing,
+    potteryPose(held) {
+      if (current.craft !== 'ceramic' || !subject) return null;
+      if (typeof held === 'boolean') wheelHeld = held;
+      const doc = toDocument(current.state), azimuth = doc.view.azimuth_deg;
+      return { wheel: { ...doc.wheel, rotation_deg: ((THREE.MathUtils.radToDeg(subject.spin.rotation.y) + azimuth + 180) % 360 + 360) % 360 - 180 },
+        view: { ...doc.view, polar_deg: THREE.MathUtils.clamp(90 - THREE.MathUtils.radToDeg(frame.elev + view.pitch), 1.43, 88),
+          zoom_percent: THREE.MathUtils.clamp(view.zoom * 100, 57, 190) } };
+    },
+    async exportPottery(format) {
+      if (current.craft !== 'ceramic' || !subject) throw Error('当前没有可导出的陶器。');
+      const doc = toDocument(current.state), name = doc.name.replace(/[\\/:*?"<>|]/g, '_') || '承艺作品';
+      let blob;
+      if (format === 'json') blob = new Blob([JSON.stringify({ format: 'taowu-pottery', version: 2, ...doc }, null, 2)], { type: 'application/json' });
+      else if (format === 'png') {
+        render();
+        const base64 = renderer.domElement.toDataURL('image/png').split(',')[1];
+        blob = new Blob([Uint8Array.from(atob(base64), letter => letter.charCodeAt(0))], { type: 'image/png' });
+      } else if (format === 'obj') {
+        const body = subject.group.getObjectByName('pottery-body'), mesh = body?.geometry;
+        if (!mesh) throw Error('三维网格未生成，无法导出。');
+        const p = mesh.attributes.position, n = mesh.attributes.normal, uv = mesh.attributes.uv, index = mesh.index;
+        const lines = ['# Chengyi pottery, units: centimeters', 'o ChengyiPottery'];
+        for (let i = 0; i < p.count; i++) lines.push(`v ${(p.getX(i) * 6).toFixed(5)} ${(p.getY(i) * 6).toFixed(5)} ${(p.getZ(i) * 6).toFixed(5)}`);
+        for (let i = 0; i < uv.count; i++) lines.push(`vt ${uv.getX(i).toFixed(6)} ${uv.getY(i).toFixed(6)}`);
+        for (let i = 0; i < n.count; i++) lines.push(`vn ${n.getX(i).toFixed(6)} ${n.getY(i).toFixed(6)} ${n.getZ(i).toFixed(6)}`);
+        for (let i = 0; i < index.count; i += 3) {
+          const a = index.getX(i) + 1, b = index.getX(i + 1) + 1, c = index.getX(i + 2) + 1;
+          lines.push(`f ${a}/${a}/${a} ${b}/${b}/${b} ${c}/${c}/${c}`);
+        }
+        blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+      } else throw Error('导出格式不支持。');
+      return { format, filename: `${name}.${format}`, bytes: blob.size, blob };
+    },
   };
   return api;
 }

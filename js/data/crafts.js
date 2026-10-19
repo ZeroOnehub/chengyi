@@ -1,4 +1,5 @@
 // 品类配置。新增可创作品类时补这里的配置与素材，不改工坊页面。
+import { validPottery } from '../core/pottery.js';
 
 export const CRAFT_NAMES = {
   ceramic: '瓷器',
@@ -26,11 +27,14 @@ export const CRAFTS = {
       { id: 'blue', name: '靛蓝', hex: '#385e88' },
       { id: 'white', name: '月白', hex: '#e2dfcb' },
       { id: 'clay', name: '暖陶', hex: '#c5a17c' },
+      { id: 'brown', name: '紫砂', hex: '#735545' },
+      { id: 'charcoal', name: '墨黑', hex: '#444843' },
     ],
     shapes: [
       { id: 'vase', name: '花瓶' },
       { id: 'bowl', name: '碗' },
       { id: 'jar', name: '罐' },
+      { id: 'cup', name: '杯' },
     ],
     steps: [
       { name: '选型塑坯', album: 'craft-shape' },
@@ -101,7 +105,8 @@ export function validState(craft, s) {
     && PATTERNS.some(x => x.id === s.pattern)
     && Number.isInteger(s.step) && s.step >= 0 && s.step < STEP_COUNT
     && Number.isFinite(s.width) && s.width >= 0.75 && s.width <= 1.2
-    && Number.isFinite(s.complexity) && s.complexity >= 0.6 && s.complexity <= 1.3;
+    && Number.isFinite(s.complexity) && s.complexity >= 0.6 && s.complexity <= 1.3
+    && (craft !== 'ceramic' || !s.pottery || validPottery(s.pottery));
 }
 
 export const colorOf = (craft, id) => CRAFTS[craft]?.colors.find(c => c.id === id);

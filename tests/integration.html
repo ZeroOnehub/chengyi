@@ -1,0 +1,48 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>承艺整合检查</title>
+<style>body{font:13px/1.6 monospace;margin:0}iframe{width:1280px;height:720px;border:0}pre{white-space:pre-wrap;padding:16px}.fail{color:#a00}.pass{color:#174d28}</style>
+<script src="storage.js"></script>
+<iframe id="app" src="../index.html?ai=off#create"></iframe><pre id="log"></pre>
+<script>
+const log=document.getElementById('log'),results=[];
+const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+function check(name,ok){results.push(Boolean(ok));const line=document.createElement('div');line.className=ok?'pass':'fail';line.textContent=(ok?'PASS ':'FAIL ')+name;log.append(line);}
+async function until(condition){for(let n=0;n<160;n++){if(condition())return;await wait(75);}throw Error('等待界面更新超时');}
+document.getElementById('app').addEventListener('load',async function run(){
+ try{
+  const frame=this,win=frame.contentWindow,doc=frame.contentDocument,$=id=>doc.getElementById(id);
+  const module=path=>win.eval(`import(${JSON.stringify(new URL(path,win.location.href).href)})`);
+  const backend=await module('js/ai/backend.js'),session=await module('js/core/session.js'),workshop=await module('js/views/workshop.js');
+  session.newWork('ceramic');workshop.openCreate('ceramic');backend.configure({enabled:true});
+  check('前后端使用同一网址',backend.backendOrigin()===win.location.origin&&await backend.ready());
+  $('voice-toggle').click();
+  const state=()=>session.getSession('ceramic').state;
+  const fingerprint=()=>JSON.stringify(state());
+  const pending=()=>[...doc.querySelectorAll('[data-apply]')].at(-1);
+  async function send(text){const count=doc.querySelectorAll('.message.ai').length;$('chat-input').value=text;$('chat-form').requestSubmit();await until(()=>!$('chat-form').querySelector('button').disabled&&doc.querySelectorAll('.message.ai').length>count);}
+  await send('做个爱心碗');check('确认前保留原器物',!state().pottery&&!!pending());
+  pending().click();await until(()=>state().pottery?.cross_section.shape==='heart'&&!doc.body.classList.contains('pottery-applying'));
+  check('确认后生成真实轮廓文档',state().shape==='bowl'&&state().pottery.profile.length===96&&$('drag-hint').textContent.includes('爱心'));
+  const heart=JSON.stringify(state().pottery);
+  $('sculpt-slider').value=110;$('sculpt-slider').dispatchEvent(new win.Event('change',{bubbles:true}));
+  check('手动调整保留爱心与局部数据',state().pottery.cross_section.shape==='heart'&&state().pottery.profile[30]>JSON.parse(heart).profile[30]);
+  $('undo').click();check('撤销恢复完整爱心文档',JSON.stringify(state().pottery)===heart);
+  $('redo').click();check('重做保留轮廓',state().pottery.cross_section.shape==='heart'&&state().width===1.1);
+  await send('改成三角形');const stale=pending();
+  $('sculpt-slider').value=105;$('sculpt-slider').dispatchEvent(new win.Event('change',{bubbles:true}));const before=fingerprint();
+  stale.click();await wait(150);check('手动修改后拒绝旧建议',fingerprint()===before&&$('toast').textContent.includes('已经发生变化'));
+  await send('改成三角形');pending().click();await until(()=>state().pottery.cross_section.shape==='triangle'&&!doc.body.classList.contains('pottery-applying'));
+  check('三角形替换成功',state().pottery.cross_section.shape==='triangle');
+  await send('导出工程文件');pending().click();await until(()=>doc.querySelector('a.artifact-download'));
+  const file=await win.fetch(doc.querySelector('a.artifact-download').href).then(response=>response.json());
+  check('导出当前实际工程',file.format==='taowu-pottery'&&file.version===2&&file.cross_section.shape==='triangle');
+  session.saveCurrent('done','整合检查三角碗');
+  const stored=JSON.parse(win.localStorage.getItem('chengyi-app-v1'));
+  check('作品收藏保留完整轮廓',stored.records.some(record=>record.name==='整合检查三角碗'&&record.state.pottery?.cross_section.shape==='triangle'));
+  const privatePaths=['/chengyi/server/.env','/chengyi/server/data/heritage.db','/chengyi/.git/config'];
+  const statuses=await Promise.all(privatePaths.map(path=>win.fetch(path).then(response=>response.status)));
+  check('静态入口无法读取密钥和数据库',statuses.every(status=>status===404));
+  const passed=results.filter(Boolean).length;document.title=`RESULT ${passed}/${results.length}`;log.prepend(`RESULT ${passed}/${results.length}\n`);
+ }catch(error){log.append('CRASH '+error.stack);document.title='INTEGRATION FAILED';}
+ finally{window.restoreTestStorage();}
+});
+</script></html>

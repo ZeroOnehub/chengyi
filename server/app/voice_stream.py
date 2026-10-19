@@ -1,30 +1,34 @@
 """Overlap text generation and short-sentence speech without waiting for a full reply."""
 import asyncio
+import base64
 from contextlib import suppress
 from time import monotonic
 
-from app.speech import MESSAGES, SpeechUnavailable, synthesize
+import httpx
+
+from app.speech import MESSAGES, SpeechUnavailable, synthesize, stream_pcm
 from app.text_stream import SentenceBuffer
 
 
-async def stream_voice(source, settings, transport=None):
+async def stream_voice(source, settings, transport=None, audio_format="mp3"):
     output = asyncio.Queue(maxsize=32)
     # The 4000-character budget bounds this queue; slow speech must not stall text.
     sentences = asyncio.Queue()
     started = monotonic()
     epoch = 0
     worker = None
-    buffer = SentenceBuffer()
+    buffer = SentenceBuffer(first_length=28)
     spoken_chars = 0
     limit_reported = False
     failed = False
     metrics = {"first_text_ms": None, "text_done_ms": None, "first_audio_byte_ms": None,
-               "first_audio_ready_ms": None, "segments": 0, "resets": 0, "speech_error": None}
+               "first_audio_ready_ms": None, "first_speech_request_ms": None,
+               "audio_format": audio_format, "segments": 0, "resets": 0, "speech_error": None}
 
     def elapsed():
         return int((monotonic() - started) * 1000)
 
-    async def speak(queue, current_epoch):
+    async def speak_sentences(queue, current_epoch, client=None):
         nonlocal failed
         sequence = 0
         while True:
@@ -34,6 +38,8 @@ async def stream_voice(source, settings, transport=None):
             if failed:
                 continue
             sequence += 1
+            if metrics["first_speech_request_ms"] is None:
+                metrics["first_speech_request_ms"] = elapsed()
             await output.put({"event": "speech_pending", "data": {
                 "epoch": current_epoch, "sequence": sequence, "elapsed_ms": elapsed()}})
 
@@ -42,18 +48,42 @@ async def stream_voice(source, settings, transport=None):
                     metrics["first_audio_byte_ms"] = elapsed()
 
             try:
-                audio = await synthesize(settings, sentence, transport, on_first_byte=first_byte)
-                if metrics["first_audio_ready_ms"] is None:
-                    metrics["first_audio_ready_ms"] = elapsed()
+                if audio_format == "pcm":
+                    await output.put({"event": "audio_start", "data": {
+                        "epoch": current_epoch, "sequence": sequence, "text": sentence,
+                        "sample_rate": 24000, "channels": 1, "encoding": "pcm_s16le"}})
+                    async for part in stream_pcm(settings, sentence, client):
+                        if metrics["first_audio_byte_ms"] is None:
+                            metrics["first_audio_byte_ms"] = elapsed()
+                            metrics["first_audio_ready_ms"] = elapsed()
+                        await output.put({"event": "audio_chunk", "data": {
+                            "epoch": current_epoch, "sequence": sequence, "sample_rate": 24000,
+                            "channels": 1, "encoding": "pcm_s16le", "elapsed_ms": elapsed(),
+                            "audio_base64": base64.b64encode(part).decode("ascii")}})
+                    await output.put({"event": "audio_end", "data": {
+                        "epoch": current_epoch, "sequence": sequence, "elapsed_ms": elapsed()}})
+                else:
+                    audio = await synthesize(settings, sentence, transport, on_first_byte=first_byte)
+                    if metrics["first_audio_ready_ms"] is None:
+                        metrics["first_audio_ready_ms"] = elapsed()
+                    await output.put({"event": "audio", "data": {
+                        **audio.as_dict(), "epoch": current_epoch, "sequence": sequence,
+                        "text": sentence, "elapsed_ms": elapsed()}})
                 metrics["segments"] += 1
-                await output.put({"event": "audio", "data": {
-                    **audio.as_dict(), "epoch": current_epoch, "sequence": sequence,
-                    "text": sentence, "elapsed_ms": elapsed()}})
             except SpeechUnavailable as exc:
                 failed = True
                 metrics["speech_error"] = exc.code
                 await output.put({"event": "speech_error", "data": {
                     "code": exc.code, "message": exc.message, "epoch": current_epoch}})
+
+    async def speak(queue, current_epoch):
+        if audio_format == "pcm":
+            # Keep the connection for following sentences instead of repeating TLS setup.
+            async with httpx.AsyncClient(timeout=settings.speech_timeout_seconds,
+                    transport=transport, follow_redirects=False) as client:
+                await speak_sentences(queue, current_epoch, client)
+        else:
+            await speak_sentences(queue, current_epoch)
 
     async def submit(texts):
         nonlocal spoken_chars, limit_reported
@@ -88,7 +118,7 @@ async def stream_voice(source, settings, transport=None):
                         epoch += 1
                         metrics["resets"] += 1
                         sentences = asyncio.Queue()
-                        buffer, spoken_chars = SentenceBuffer(), 0
+                        buffer, spoken_chars = SentenceBuffer(first_length=28), 0
                         worker = asyncio.create_task(speak(sentences, epoch))
                     await output.put(event)
                     if kind == "delta":

@@ -76,6 +76,8 @@ export const GLAZES = {
   blue: { fired: '#203d6b', pool: '#132648', edge: '#6f8db8', raw: '#aeb8c6', style: 'lift', crackle: false, rough: 0.12 },
   white: { fired: '#e8eae2', pool: '#c9d6d2', edge: '#f6f6f0', raw: '#dcd8d0', style: 'cobalt', crackle: false, rough: 0.1 },
   clay: { fired: '#a86f45', pool: '#6e4026', edge: '#d7a476', raw: '#d3bba1', style: 'incise', crackle: false, rough: 0.34 },
+  brown: { fired: '#735545', pool: '#4e352b', edge: '#a07d62', raw: '#b6a28e', style: 'incise', crackle: false, rough: 0.65 },
+  charcoal: { fired: '#444843', pool: '#242923', edge: '#747b70', raw: '#8b9087', style: 'carve', crackle: false, rough: 0.32 },
 };
 
 const CLAY = { wet: '#9c9186', raw: '#cfc6b9', fired: '#e6dccb', flash: '#c99c72' };

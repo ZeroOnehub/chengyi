@@ -5,6 +5,7 @@ import { CRAFTS, CRAFT_NAMES, clampState, defaultState, validState } from '../da
 import { clone, makeId } from './dom.js';
 import { emit } from './bus.js';
 import * as store from './store.js';
+import { mergeManual } from './pottery.js';
 
 const MAX_HISTORY = 50;
 const sessions = {};
@@ -47,6 +48,7 @@ export function loadRecord(record) {
 // 保存当前作品到本机；status 为 draft 或 done
 export function saveCurrent(status, name) {
   const ss = getSession();
+  if (name && ss.state.pottery) ss.state.pottery = { ...ss.state.pottery, name: name.slice(0, 40) };
   let record = store.findRecord(ss.id);
   if (!record) {
     record = {
@@ -72,7 +74,9 @@ export function saveCurrent(status, name) {
 // 修改作品。返回 false 表示无变化或不合法。
 export function commit(patch, { remember = true } = {}) {
   const ss = getSession();
-  const next = clampState({ ...ss.state, ...patch });
+  let next;
+  try { next = clampState(activeCraft === 'ceramic' ? mergeManual(ss.state, patch) : { ...ss.state, ...patch }); }
+  catch { return false; }
   if (!validState(activeCraft, next)) return false;
   if (JSON.stringify(next) === JSON.stringify(ss.state)) return false;
   if (remember) {
@@ -108,5 +112,6 @@ export function redo() {
 
 // 拖动滑杆时的临时预览，不入撤销栈
 export function preview(patch) {
-  emit('preview', clampState({ ...getSession().state, ...patch }));
+  try { emit('preview', clampState(activeCraft === 'ceramic' ? mergeManual(getSession().state, patch) : { ...getSession().state, ...patch })); }
+  catch { /* 预览超过陶器尺寸范围时保留当前作品 */ }
 }

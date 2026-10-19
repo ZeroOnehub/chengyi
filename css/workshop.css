@@ -94,7 +94,7 @@
 }
 .steps li { display: flex; align-items: center; }
 .steps li + li::before { content: ""; width: 34px; height: 1px; background: var(--rule-strong); margin: 0 4px; }
-.step { display: flex; align-items: baseline; gap: 8px; padding: 6px 12px; font-size: 13px; letter-spacing: 2px; color: var(--ink-3); }
+.step { display: flex; align-items: baseline; gap: 8px; padding: 6px 12px; font-size: 13px; letter-spacing: 2px; color: var(--ink-3); white-space: nowrap; }
 .step-number { font-family: var(--font-display); font-size: 15px; }
 .step.done { color: var(--ink-2); }
 .step.active { color: var(--ink); background: var(--card-solid); box-shadow: 0 1px 3px rgba(40, 30, 20, .1); }
@@ -164,13 +164,14 @@
 .tray-actions { display: flex; align-items: center; gap: 10px; padding-left: 18px; border-left: 1px solid var(--rule); }
 .tray-actions .primary-btn { min-height: 38px; padding: 8px 22px; }
 
-.save-status { position: absolute; left: var(--gutter); bottom: 38px; margin: 0; font-size: var(--fs-tiny); letter-spacing: 1px; color: var(--ink-3); }
+.save-status { position: absolute; left: var(--gutter); bottom: 4px; margin: 0; font-size: var(--fs-tiny); letter-spacing: 1px; color: var(--ink-3); }
 .drag-hint { position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%); margin: 0; font-size: var(--fs-tiny); letter-spacing: 2px; color: var(--ink-3); pointer-events: none; animation: hint 5s ease forwards; }
 @keyframes hint { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
 
 /* 承艺之声（voice.css）展开时，工序与工具盘让到左边 */
 .work-top, .tray, .step-copy { transition: left var(--t-mid) var(--ease-out), right var(--t-mid) var(--ease-out); }
 .work.chat-open .work-top { right: calc(var(--gutter) + 400px); }
+.work.chat-open .step:not(.active) span:not(.step-number) { display: none; }
 .work.chat-open .tray, .work.chat-open .step-copy { left: calc((100% - 400px - var(--gutter)) / 2); }
 
 @media (hover: hover) and (pointer: fine) {

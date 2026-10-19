@@ -34,28 +34,37 @@ class ReasoningFilter:
 
 
 class SentenceBuffer:
-    def __init__(self, max_length=90):
+    def __init__(self, max_length=90, first_length=None):
         self.pending = ""
         self.max_length = max_length
+        self.first_length = first_length
+        self.first = True
 
     def feed(self, text, final=False):
         self.pending += text
         sentences = []
         while self.pending:
+            limit = self.first_length if self.first and self.first_length else self.max_length
             match = re.search(r"[。！？!?；;\n]", self.pending)
             boundary = match.end() if match else None
-            if boundary is None or boundary > self.max_length:
-                if len(self.pending) < self.max_length:
+            if self.first_length and self.first:
+                phrase = re.search(r"[，,:：]", self.pending[8:limit])
+                if phrase:
+                    phrase_end = phrase.end() + 8
+                    boundary = min(boundary, phrase_end) if boundary else phrase_end
+            if boundary is None or boundary > limit:
+                if len(self.pending) < limit:
                     break
                 # Prefer a natural phrase boundary over cutting a long sentence.
-                prefix = self.pending[:self.max_length]
+                prefix = self.pending[:limit]
                 boundary = max(prefix.rfind("，"), prefix.rfind(","), prefix.rfind(" ")) + 1
                 if boundary < 12:
-                    boundary = self.max_length
+                    boundary = limit
             sentence, self.pending = self.pending[:boundary], self.pending[boundary:]
             sentence = self.clean(sentence)
             if sentence:
                 sentences.append(sentence)
+                self.first = False
         if final and self.pending:
             sentence = self.clean(self.pending)
             self.pending = ""

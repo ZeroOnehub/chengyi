@@ -1,4 +1,5 @@
 from typing import Generic, Literal, TypeVar
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, SecretStr, StringConstraints, model_validator
 from typing_extensions import Annotated
@@ -240,3 +241,70 @@ class VoiceTranscription(BaseModel):
     text: str
     command: Literal["audio_pause", "audio_resume", "audio_repeat", "audio_stop"] | None
     latency_ms: int
+
+
+UIActionType = Literal["open_item", "focus_hotspot", "audio_pause", "audio_resume", "audio_repeat", "audio_stop"]
+
+
+class UIPlanInput(InputModel):
+    text: str = Field(min_length=1, max_length=2000)
+    expected_revision: int = Field(ge=1)
+    client_request_id: UUID
+    supported_actions: list[UIActionType] = Field(max_length=6)
+
+
+class UIContextInput(InputModel):
+    expected_revision: int = Field(ge=1)
+    item_id: Identifier
+    hotspot_id: Identifier | None = None
+
+
+class UICancelInput(InputModel):
+    expected_revision: int = Field(ge=1)
+
+
+class UIReceiptInput(InputModel):
+    expected_revision: int = Field(ge=1)
+    status: Literal["applied", "failed", "unsupported", "cancelled"]
+    actual_item_id: Identifier | None = None
+    actual_hotspot_id: Identifier | None = None
+    playback_state: Literal["playing", "paused", "stopped"] | None = None
+
+
+class UIActionTicket(BaseModel):
+    id: str
+    type: UIActionType
+    item_id: str | None
+    hotspot_id: str | None
+    expected_revision: int
+    expires_at: str
+
+
+class UIChoice(BaseModel):
+    label: str
+    text: str
+
+
+class UIPlanResult(BaseModel):
+    decision: Literal["action", "ask", "clarify", "completed"]
+    message: str
+    session: SessionState
+    action: UIActionTicket | None = None
+    interaction: InteractionInput | None = None
+    choices: list[UIChoice] = Field(default_factory=list)
+    resolver: Literal["local_commands"] = "local_commands"
+
+
+class UIState(BaseModel):
+    session: SessionState
+    pending_action: UIActionTicket | None
+    action_types: list[UIActionType]
+
+
+class UIReceiptResult(BaseModel):
+    action_id: str
+    status: Literal["applied", "failed", "unsupported", "cancelled"]
+    duplicate: bool
+    message: str
+    session: SessionState
+    interaction: InteractionInput | None = None

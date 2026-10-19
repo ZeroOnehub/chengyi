@@ -10,6 +10,8 @@ import * as session from '../core/session.js';
 import { CRAFTS, CRAFT_NAMES } from '../data/crafts.js';
 import { LOCAL_KINDS, guideRespond, quickOptions, respond } from '../ai/assistant.js';
 import * as backend from '../ai/backend.js';
+import * as pottery from '../ai/pottery.js';
+import * as audio from '../ai/audio.js';
 import { describe, workNote } from '../ai/context.js';
 import { play } from '../fx/sound.js';
 import { getFocus } from './explore.js';
@@ -28,12 +30,15 @@ const DISCLAIMER = {
   unknown: '正在连接讲解后台…',
   down: '没连上讲解后台，现为规则演示 · 知识回答只引用册页',
   off: '规则演示，未接入大模型 · 知识回答只引用册页',
+  demo: '尚未配置大模型，当前提供演示回答。',
 };
 
 const messages = [];
 const greeted = new Set();
 let lastKey = null;
 let busy = false;
+let recordingBusy = false, activeRequest = null, recordingControls = null;
+const downloads = [];
 
 const isOpen = () => !$('chat-panel').hidden;
 
@@ -92,7 +97,7 @@ function bubble(m, i) {
   const proposal = m.proposal
     ? `<div class="proposal"><span>${esc(m.proposal.summary)}</span>${m.proposal.applied
       ? '<span class="applied">已应用到作品，可以撤销</span>'
-      : `<button class="secondary" data-apply="${i}">应用建议，看看效果</button>`}</div>`
+      : `<button class="secondary" data-apply="${i}" ${busy ? 'disabled' : ''}>应用建议，看看效果</button>`}</div>`
     : '';
   const quick = m.quick
     ? `<div class="quick">${m.quick.map((q, j) => `<button data-quick="${i}:${j}">${esc(q.label)}</button>`).join('')}${m.retry ? `<button data-retry="${i}">重新尝试</button>` : ''}</div>`
@@ -101,7 +106,8 @@ function bubble(m, i) {
   const body = m.pending && !m.text ? '<em class="typing">正在查非遗知识库…</em>' : aiText(m.text);
   return `<div class="message ai ${m.error ? 'error' : ''}" data-i="${i}"><strong>承艺之声${m.error ? ' · 暂时休息' : ''}</strong>`
     + `${m.note ? `<small class="ai-note">${esc(m.note)}</small>` : ''}<span>${body}</span>`
-    + `${cites ? `<div class="cites">${cites}</div>` : ''}${sources}${albumLink}${proposal}${quick}</div>`;
+    + `${cites ? `<div class="cites">${cites}</div>` : ''}${sources}${albumLink}${proposal}${quick}`
+    + `${(m.files || []).map(file => `<a class="artifact-download" href="${file.url}" download="${esc(file.filename)}">下载 ${esc(file.filename)}</a>`).join('')}</div>`;
 }
 
 function render() {
@@ -111,7 +117,8 @@ function render() {
   $('messages').scrollTop = $('messages').scrollHeight;
   $('chat-prompts').innerHTML = ctx.prompts.map(x => `<button data-prompt="${esc(x)}">${esc(x)}</button>`).join('');
   $('chat-input').placeholder = ctx.create ? CRAFTS[ctx.craft].placeholder : '想知道什么，都可以问我';
-  $('chat-form').querySelector('button').disabled = busy;
+  $('chat-form').querySelector('button').disabled = busy || recordingBusy;
+  $('chat-record').disabled = busy;
   renderDisclaimer();
 }
 
@@ -132,6 +139,9 @@ export function setChat(open) {
     render();
     $('chat-input').focus({ preventScroll: true });
     backend.ready().then(renderDisclaimer);
+  } else {
+    audio.stop();
+    void recordingControls?.cancelRecording();
   }
   emit('chat', { open });
 }
@@ -163,7 +173,8 @@ async function askModel(ctx, clean, fallback) {
       item: ctx.item,
       question,
       onDelta: t => { msg.text += t; renderStreaming(msg); },
-      onReset: () => { msg.text = ''; renderStreaming(msg); },
+      onReset: () => { msg.text = ''; audio.stop(); renderStreaming(msg); },
+      voice: audio.enabled(), onAudio: audio.receive, signal: activeRequest?.signal,
     });
     // fallback 是后台在模型失败时拼的资料讲解，不如册页规则版贴切，改用规则版
     if (result.mode !== 'live') throw new backend.AIError(`mode_${result.mode}`);
@@ -171,6 +182,9 @@ async function askModel(ctx, clean, fallback) {
     msg.sources = backend.knowledgeTitles(result.sources);
     msg.pending = false;
   } catch (e) {
+    if (activeRequest?.signal.aborted) {
+      msg.pending = false; msg.text = msg.text || '请求已停止。'; return;
+    }
     messages.splice(messages.indexOf(msg), 1);
     pushLocal(fallback, ctx.craft, '讲解后台这次没有回应，先用册页回答');
   }
@@ -178,7 +192,8 @@ async function askModel(ctx, clean, fallback) {
 
 export async function sendPrompt(text) {
   const clean = text.trim();
-  if (!clean || busy) return;
+  if (!clean || busy || recordingBusy) return;
+  audio.stop(); audio.unlock(); activeRequest = new AbortController();
   const ctx = here();
   enter(ctx);
   busy = true;
@@ -202,7 +217,15 @@ export async function sendPrompt(text) {
       return;
     }
     const local = ctx.create ? respond(clean, craft, session.getSession(craft).state) : guideRespond(clean, craft);
-    if (!LOCAL_KINDS.has(local.kind) && await backend.ready()) await askModel(ctx, clean, local);
+    if (ctx.create && craft === 'ceramic' && pottery.wantsPottery(clean, local) && await backend.ready()) {
+      try {
+        const result = await pottery.plan(clean, local, activeRequest.signal);
+        push({ role: 'ai', craft, text: result.text, proposal: result.proposal || null });
+        if (result.command && audio.enabled()) void narrate(result);
+      } catch (error) {
+        if (!activeRequest.signal.aborted) push({ role: 'ai', craft, text: `这次没有修改作品：${error.message}`, error: true });
+      }
+    } else if (!LOCAL_KINDS.has(local.kind) && await backend.ready()) await askModel(ctx, clean, local);
     else {
       await pause();
       pushLocal(local, craft);
@@ -210,13 +233,22 @@ export async function sendPrompt(text) {
     setOrb('done');
     play('tap');
   } finally {
-    busy = false;
+    busy = false; activeRequest = null;
     render();
   }
 }
 
+async function narrate(result) {
+  const controller = audio.controller();
+  try { await pottery.speak(result.command, result.binding, audio.receive, controller.signal); }
+  catch (error) { if (!controller.signal.aborted) toast(`作品操作已完成，朗读未完成：${error.message}`); }
+}
+
 // —— 初始化 ——
 export function initVoice() {
+  recordingControls = audio.install({ send: sendPrompt, canStart: () => !busy && !recordingBusy,
+    onRecording: value => { recordingBusy = value; render(); },
+    onStop: () => { activeRequest?.abort(); void pottery.cancelPending().catch(() => {}); } });
   $('voice-toggle').addEventListener('click', () => setChat(true));
   $('chat-close').addEventListener('click', () => setChat(false));
   $('chat-form').addEventListener('submit', e => { e.preventDefault(); sendPrompt($('chat-input').value); });
@@ -224,12 +256,27 @@ export function initVoice() {
     const b = e.target.closest('[data-prompt]');
     if (b) sendPrompt(b.dataset.prompt);
   });
-  $('messages').addEventListener('click', e => {
+  $('messages').addEventListener('click', async e => {
     const apply = e.target.closest('[data-apply]');
     if (apply) {
       const msg = messages[Number(apply.dataset.apply)];
-      if (!msg?.proposal || msg.proposal.applied) return;
+      if (!msg?.proposal || msg.proposal.applied || busy) return;
       if (msg.craft !== session.getActiveCraft()) { toast(`回到${CRAFT_NAMES[msg.craft]}创作台再应用`); return; }
+      if (msg.proposal.kind === 'pottery') {
+        if (!here().create) { toast('回到当前瓷器创作台再应用'); return; }
+        busy = true; render(); audio.stop(); audio.unlock();
+        try {
+          const result = await pottery.apply(msg.proposal);
+          const completed = push({ role: 'ai', craft: 'ceramic', text: result.text });
+          completed.files = (result.artifacts || []).map(file => {
+            const url = URL.createObjectURL(file.blob); downloads.push(url); return { url, filename: file.filename };
+          });
+          if (audio.enabled()) void narrate(result);
+          play('confirm');
+        } catch (error) { toast(error.message); }
+        finally { busy = false; render(); }
+        return;
+      }
       if (msg.proposal.kind === 'undo') session.undo();
       else if (!session.commit(msg.proposal.patch)) toast('当前作品已符合这组设置');
       msg.proposal.applied = true;
@@ -264,6 +311,9 @@ export function initVoice() {
     render();
   });
   on('chat-close', () => { if (isOpen()) setChat(false); });
-  on('view', () => { if (isOpen()) { enter(here()); render(); } });
+  on('view', () => { audio.stop(); activeRequest?.abort(); void recordingControls?.cancelRecording();
+    if (isOpen()) { enter(here()); render(); } });
+  on('settings', ({ key }) => { if (key === 'sound') { $('chat-read').checked = audio.enabled(); if (!audio.enabled()) audio.stop(); } });
+  window.addEventListener('pagehide', () => { for (const url of downloads) URL.revokeObjectURL(url); });
   setOrb('idle');
 }

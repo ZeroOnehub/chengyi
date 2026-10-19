@@ -40,13 +40,16 @@ def build_messages(item, sources, history, audience, instruction):
     return messages
 
 
-async def stream_model(settings, messages, transport=None, user="backend-probe"):
+async def stream_model(settings, messages, transport=None, user="backend-probe", purpose="guide"):
     try:
         async with asyncio.timeout(settings.llm_timeout_seconds):
             reasoning_filter = ReasoningFilter()
             received = False
             source = _stream_dify if settings.llm_provider == "dify" else _stream_model
-            async for chunk in source(settings, messages, transport, user=user):
+            kwargs = {"user": user}
+            if settings.llm_provider == "dify":
+                kwargs["purpose"] = purpose
+            async for chunk in source(settings, messages, transport, **kwargs):
                 if chunk.replace:
                     reasoning_filter = ReasoningFilter()
                     received = False
@@ -63,7 +66,7 @@ async def stream_model(settings, messages, transport=None, user="backend-probe")
         raise ModelUnavailable("provider_timeout") from None
 
 
-async def _stream_dify(settings, messages, transport=None, user="backend-probe"):
+async def _stream_dify(settings, messages, transport=None, user="backend-probe", purpose="guide"):
     """Chatbot / Legacy Agent API; local sessions own the last ten history messages.
 
     Each request starts a remote conversation and explicitly carries local context.
@@ -72,6 +75,8 @@ async def _stream_dify(settings, messages, transport=None, user="backend-probe")
     query = ("以下是后台提供的当前物品、参考资料、历史对话和本轮请求，请回答最后的请求。"
              "需要藏品、工艺或制作资料且已有资料不足时，先检索本应用关联的非遗知识库。"
              "只输出适合朗读的最终回答，不输出思考过程。\n" + json.dumps(messages, ensure_ascii=False))
+    if purpose == "workbench":
+        query = "【陶艺工作台指令模式】\n按照本轮提供的工作台协议返回一个 JSON 对象。\n" + json.dumps(messages, ensure_ascii=False)
     body = {"inputs": {}, "query": query, "response_mode": "streaming",
             "user": "heritage-" + user, "auto_generate_name": False, "conversation_id": ""}
     finished = False

@@ -1,6 +1,8 @@
 // 共创工坊：工坊入口 → 创作台。两者共用一个写实摄影棚，器物始终是画面的主角。
 // 入口只有一段介绍和三个选择；创作台只露出当前工序要用的工具。承艺之声在 voice.js，这里只响应它的展开与收起。
 
+import { setPotteryStage } from '../ai/pottery.js';
+import { geometry as potteryGeometry } from '../core/pottery.js';
 import { $, esc, toast } from '../core/dom.js';
 import { emit, on } from '../core/bus.js';
 import { currentView, showView } from '../core/router.js';
@@ -143,6 +145,9 @@ function renderWork() {
   $('pattern-chips').innerHTML = PATTERNS.map(x =>
     `<button data-pattern="${x.id}" aria-pressed="${s.pattern === x.id}">${x.name}</button>`).join('');
   $('stage-under').textContent = FINAL_NOTE[craft];
+  $('drag-hint').textContent = craft === 'ceramic' && s.pottery
+    ? `${potteryGeometry.NAMES[s.pottery.cross_section.shape]} · 高 ${s.pottery.height.toFixed(1)} cm · 拖动旋转 · 滚轮远近`
+    : '拖动可旋转 · 滚轮远近';
 
   const slider = $('sculpt-slider');
   if (craft === 'ceramic') {
@@ -192,6 +197,12 @@ function onChat({ open }) {
 // —— 初始化 ——
 export function initWorkshop() {
   studio = createStudio($('studio-canvas'));
+  setPotteryStage(held => studio?.potteryPose(held), async effects => {
+    if (!studio) throw Error('当前浏览器没有可用的三维画布，请使用支持 WebGL 的浏览器。');
+    const artifacts = [];
+    for (const effect of effects) if (effect.type === 'export_artifact') artifacts.push(await studio.exportPottery(effect.format));
+    return artifacts;
+  });
   if (studio) studio.setReduced(reducedMotion());
   else $('studio-canvas').hidden = true;
 
@@ -253,7 +264,7 @@ export function initWorkshop() {
   $('redo').addEventListener('click', () => session.redo());
   $('reset-work').addEventListener('click', async () => {
     const ok = await confirmAction('重置整件作品？', '作品会回到初始状态。重置后仍可以撤销。', '重置');
-    if (ok && session.commit({ ...CRAFTS[craftNow()].defaultState })) toast('已重置，可以撤销');
+    if (ok && session.commit({ ...CRAFTS[craftNow()].defaultState, ...(craftNow() === 'ceramic' ? { pottery: null } : {}) })) toast('已重置，可以撤销');
   });
   $('next-step').addEventListener('click', () => {
     const s = session.getSession().state;

@@ -8,3 +8,5 @@ __pycache__
 .pytest_cache
 *.log
 .git
+分享文件
+后台账号.txt

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.mysql import LONGTEXT
 
@@ -97,6 +97,23 @@ class Message(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
+class UIAction(Base):
+    __tablename__ = "ui_actions"
+    __table_args__ = (UniqueConstraint("session_id", "client_request_id", name="uq_ui_action_request"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    session_id: Mapped[str] = mapped_column(ForeignKey("visitor_sessions.id"), index=True)
+    client_request_id: Mapped[str] = mapped_column(String(36))
+    request_hash: Mapped[str] = mapped_column(String(64))
+    revision: Mapped[int] = mapped_column(Integer)
+    action_type: Mapped[str] = mapped_column(String(40))
+    item_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    hotspot_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(String(24), default="pending")
+    receipt: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+
+
 class InteractionEvent(Base):
     # 历史统计数据保留；轻量版不采集交互统计。
     __tablename__ = "interaction_events"
@@ -120,3 +137,31 @@ class ModelCall(Base):
     completion_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class PotteryProject(Base):
+    __tablename__ = "pottery_projects"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    session_id: Mapped[str] = mapped_column(ForeignKey("visitor_sessions.id"), index=True)
+    document: Mapped[dict] = mapped_column(JSON)
+    undo: Mapped[list] = mapped_column(JSON, default=list)
+    redo: Mapped[list] = mapped_column(JSON, default=list)
+    revision: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    saved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+    __mapper_args__ = {"version_id_col": revision}
+
+
+class PotteryCommand(Base):
+    __tablename__ = "pottery_commands"
+    __table_args__ = (UniqueConstraint("project_id", "client_request_id", name="uq_pottery_command_request"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("pottery_projects.id"), index=True)
+    client_request_id: Mapped[str] = mapped_column(String(36))
+    request_hash: Mapped[str] = mapped_column(String(64))
+    revision: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(24), default="pending")
+    result: Mapped[dict] = mapped_column(JSON)
+    receipt: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)

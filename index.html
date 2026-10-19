@@ -183,6 +183,12 @@
       <input id="chat-input" aria-label="和承艺之声说话" maxlength="300" autocomplete="off">
       <button type="submit" aria-label="发送">发送</button>
     </form>
+    <div class="chat-voice-controls">
+      <button type="button" id="chat-record">按住说话</button>
+      <label><input type="checkbox" id="chat-read">朗读回复</label>
+      <button type="button" id="chat-stop">停止</button>
+    </div>
+    <p id="voice-status" class="voice-status" role="status" aria-live="polite"></p>
     <p class="chat-disclaimer" id="chat-disclaimer"></p>
   </aside>
 

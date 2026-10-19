@@ -117,3 +117,50 @@ async def synthesize(settings, text, transport=None, on_first_byte=None):
     if not (content.startswith(b"ID3") or (len(content) >= 2 and content[0] == 0xFF and content[1] & 0xE0 == 0xE0)):
         raise SpeechUnavailable("speech_invalid_audio")
     return SpeechAudio(bytes(content), first_byte or 0, int((monotonic() - started) * 1000))
+
+
+async def stream_pcm(settings, text, client):
+    """Forward mono signed 16-bit little-endian PCM without whole-sentence buffering."""
+    pending = b""
+    received = 0
+    try:
+        async with asyncio.timeout(settings.speech_timeout_seconds):
+            async with client.stream("POST", SPEECH_URL, json={
+                "model": MODEL, "voice": MODEL + ":" + settings.speech_voice,
+                "input": text, "response_format": "pcm", "sample_rate": 24000, "stream": True,
+            }, headers={"Authorization": "Bearer " + settings.speech_api_key.get_secret_value()}) as response:
+                if response.status_code != 200:
+                    code = {401: "speech_unauthorized", 403: "speech_access_denied",
+                            429: "speech_rate_limited"}.get(response.status_code, "speech_http_error")
+                    if response.status_code == 403:
+                        detail = bytearray()
+                        async for part in response.aiter_bytes():
+                            detail.extend(part[:65536 - len(detail)])
+                            if len(detail) >= 65536:
+                                break
+                        if "identity verification" in detail.decode("utf-8", errors="replace").lower():
+                            code = "speech_identity_required"
+                    raise SpeechUnavailable(code)
+                content_type = response.headers.get("content-type", "").lower()
+                if "json" in content_type or "text/" in content_type:
+                    raise SpeechUnavailable("speech_invalid_audio")
+                async for part in response.aiter_bytes():
+                    if not part:
+                        continue
+                    if not received and part.startswith((b"ID3", b"RIFF", b"<html", b'{"error')):
+                        raise SpeechUnavailable("speech_invalid_audio")
+                    received += len(part)
+                    if received > 2 * 1024 * 1024:
+                        raise SpeechUnavailable("speech_invalid_audio")
+                    pending += part
+                    # Align to complete PCM samples and bound each SSE packet.
+                    while len(pending) >= 2:
+                        size = min(len(pending) - len(pending) % 2, 16384)
+                        yield pending[:size]
+                        pending = pending[size:]
+    except (TimeoutError, httpx.TimeoutException):
+        raise SpeechUnavailable("speech_timeout") from None
+    except httpx.HTTPError:
+        raise SpeechUnavailable("speech_connection_error") from None
+    if not received or pending:
+        raise SpeechUnavailable("speech_invalid_audio")

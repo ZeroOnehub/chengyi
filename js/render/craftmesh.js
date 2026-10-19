@@ -2,6 +2,7 @@
 // 以及山河样品里仅供欣赏的景泰蓝、木雕、布料。工坊与作品照片共用这里的造型，保证所见即所得。
 
 import * as THREE from 'three';
+import { geometry, toDocument } from '../core/pottery.js';
 import {
   GLAZES, PAPERS, ceramicMaps, cloisonneMaps, paperColorMap, papercutMask, paperUnits,
   reliefMap, textileMap, toTexture, wedgeOf, wheelMap, woodMaps,
@@ -36,12 +37,14 @@ const OUTER = {
   vase: [[0.5, 0.06], [0.6, 0.16], [0.84, 0.42], [0.99, 0.82], [0.98, 1.18], [0.84, 1.52], [0.6, 1.8], [0.4, 2.04], [0.31, 2.3], [0.32, 2.55], [0.42, 2.76]],
   bowl: [[0.46, 0.07], [0.58, 0.2], [0.86, 0.4], [1.14, 0.72], [1.33, 1.06], [1.45, 1.36]],
   jar: [[0.56, 0.06], [0.74, 0.18], [1.02, 0.56], [1.14, 1.02], [1.06, 1.46], [0.82, 1.8], [0.62, 1.95], [0.58, 2.06], [0.61, 2.16]],
+  cup: [[0.66, 0.06], [0.7, 0.2], [0.72, 2.25], [0.78, 2.5]],
 };
 // 纹饰带所在高度
 const BANDS = {
   vase: { band: [1.0, 1.5], lower: [0.14, 0.44], neck: [2.08, 2.5] },
   bowl: { band: [0.78, 1.22], lower: null, neck: null },
   jar: { band: [1.08, 1.62], lower: [0.14, 0.48], neck: null },
+  cup: { band: [0.7, 1.9], lower: [0.14, 0.4], neck: null },
 };
 
 function buildProfile(shape) {
@@ -166,8 +169,17 @@ function buildWheel() {
 export function buildCeramic(state) {
   const group = new THREE.Group();
   const prof = profileOf(state.shape);
-  const body = new THREE.Mesh(new THREE.LatheGeometry(prof.points, 160), ceramicMaterial(state));
-  body.scale.set(state.width, 1, state.width);
+  const doc = state.pottery ? toDocument(state) : null;
+  const grid = doc ? geometry.grid(doc) : null;
+  const stats = doc ? geometry.stats(doc, grid) : null;
+  const material = ceramicMaterial(state);
+  if (doc && state.step === 2) {
+    material.roughness = Math.max(.06, 1 - doc.gloss / 100);
+    material.clearcoatRoughness = Math.max(.03, 1 - doc.gloss / 100);
+  }
+  const body = new THREE.Mesh(doc ? geometry.buildGeometry(THREE, doc, grid) : new THREE.LatheGeometry(prof.points, 160), material);
+  body.name = 'pottery-body';
+  body.scale.set(doc ? 1 : state.width, 1, doc ? 1 : state.width);
   body.castShadow = true;
   body.receiveShadow = true;
   const spin = new THREE.Group();
@@ -185,9 +197,9 @@ export function buildCeramic(state) {
     spin,
     wheel,
     materials: [body.material],
-    height: prof.height + lift,
-    radius: wheel ? 2.1 : Math.max(prof.footR, ...OUTER[state.shape].map(p => p[0])) * state.width,
-    footR: prof.footR * state.width,
+    height: (doc ? doc.height / 6 + .025 : prof.height) + lift,
+    radius: Math.max(wheel ? 2.1 : 0, stats ? stats.max_radius : Math.max(prof.footR, ...OUTER[state.shape].map(p => p[0])) * state.width),
+    footR: grid ? Math.max(...grid[0]) : prof.footR * state.width,
     lift,
     kind: 'ceramic',
   };
